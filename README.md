@@ -111,7 +111,7 @@ win-theos.cmd native build
 ```powershell
 New-Item -ItemType Directory -Force dist
 npm.cmd pack --pack-destination dist
-npm.cmd install -g --foreground-scripts .\dist\win-theos-0.4.0.tgz
+npm.cmd install -g --foreground-scripts .\dist\win-theos-0.4.1.tgz
 theos.cmd doctor
 ```
 
