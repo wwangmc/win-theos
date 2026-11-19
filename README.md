@@ -86,6 +86,8 @@ theos.cmd package -- TYPE=1 FINALPACKAGE=1
 
 rootful、rootless 和 RootHide 的安装路径和包架构各自独立。项目只在所选模式的依赖和设备环境匹配时运行，使用绝对越狱路径的源码及安装脚本需要按相应模式适配。
 
+从 0.4.2 起，便携 Windows 环境会安装 Objective-C `@available` 和 `__builtin_available` 所需的 iOS 版本检查运行库，支持 arm64 和 arm64e。升级 CLI 时会给已有便携环境补齐该运行库。
+
 ## 独立的原生 tweak 流程
 
 上一版的 Windows Python 构建流程可通过 `win-theos native` 继续使用。它适用于简单 `.x`、`.xm` 注入项目，可用现有的 `WIN_IOS_TWEAK_CONFIG`。需要 GNU Make 规则、其他项目类型或多子项目时，从上面的 `init` 和 `package` 入口运行 Theos。
@@ -111,7 +113,7 @@ win-theos.cmd native build
 ```powershell
 New-Item -ItemType Directory -Force dist
 npm.cmd pack --pack-destination dist
-npm.cmd install -g --foreground-scripts .\dist\win-theos-0.4.1.tgz
+npm.cmd install -g --foreground-scripts .\dist\win-theos-0.4.2.tgz
 theos.cmd doctor
 ```
 

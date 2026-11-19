@@ -1,6 +1,6 @@
 {
   "name": "win-theos",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Global CLI for Theos project templates, builds, and packaging on Windows",
   "license": "MIT",
   "repository": {
