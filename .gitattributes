@@ -1,0 +1,4 @@
+/templates/*.nic text eol=lf
+/bin/*.js text eol=lf
+/lib/*.sh text eol=lf
+/lib/*.pl text eol=lf

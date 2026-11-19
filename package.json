@@ -1,0 +1,25 @@
+{
+  "name": "win-theos",
+  "version": "0.4.0",
+  "description": "Global CLI for Theos project templates, builds, and packaging on Windows",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wwangmc/win-theos.git"
+  },
+  "homepage": "https://github.com/wwangmc/win-theos#readme",
+  "bugs": "https://github.com/wwangmc/win-theos/issues",
+  "keywords": ["theos", "ios", "windows", "logos"],
+  "type": "module",
+  "bin": {
+    "win-theos": "bin/theos.js",
+    "theos": "bin/theos.js"
+  },
+  "scripts": {
+    "postinstall": "node bin/theos.js bootstrap --auto"
+  },
+  "files": ["bin/*.js", "lib/bootstrap.js", "lib/windows-package-mode.pl", "lib/windows-ldid.sh", "lib/windows-clang.sh", "lib/llvm/", "lib/roothide/", "lib/native/*.py", "templates/Tweak.xm", "templates/demo.nic", "skills/win-theos/"],
+  "engines": {
+    "node": ">=20"
+  }
+}

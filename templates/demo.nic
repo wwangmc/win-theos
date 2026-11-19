@@ -1,0 +1,66 @@
+nic 1
+name "demo"
+file 15 Makefile
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:latest:14.0
+THEOS_PACKAGE_SCHEME ?= rootless
+INSTALL_TARGET_PROCESSES = SpringBoard
+
+include @@THEOS@@/makefiles/common.mk
+
+TWEAK_NAME = @@PROJECTNAME@@
+
+@@PROJECTNAME@@_FILES = Tweak.x
+@@PROJECTNAME@@_CFLAGS = -fobjc-arc
+@@PROJECTNAME@@_FRAMEWORKS = CoreFoundation
+
+include $(THEOS_MAKE_PATH)/tweak.mk
+
+file 1 @@PROJECTNAME@@.plist
+{ Filter = { Bundles = ( "com.apple.springboard" ); }; }
+file 9 control
+Package: @@PACKAGENAME@@
+Name: @@FULLPROJECTNAME@@
+Version: 0.0.2
+Architecture: iphoneos-arm
+Description: Show Hello World when SpringBoard launches
+Maintainer: @@USER@@
+Author: @@USER@@
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000)
+constrain file "control" to package
+file 34 Tweak.x
+#import <CoreFoundation/CoreFoundation.h>
+#import <dispatch/dispatch.h>
+#import <dlfcn.h>
+
+// The iOS SDK hides this system alert API, so resolve it at runtime.
+typedef SInt32 (*DisplayAlert)(CFTimeInterval, CFOptionFlags, CFURLRef, CFURLRef, CFURLRef,
+                             CFStringRef, CFStringRef, CFStringRef, CFStringRef, CFStringRef,
+                             CFOptionFlags *);
+
+static void ShowDemoAlert(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        DisplayAlert display = (DisplayAlert)dlsym(RTLD_DEFAULT, "CFUserNotificationDisplayAlert");
+        if (!display) return;
+
+        const CFOptionFlags plainAlertLevel = 3;
+        CFOptionFlags response = 0;
+        display(0, plainAlertLevel, NULL, NULL, NULL, CFSTR("Hello World"), CFSTR(""),
+                CFSTR("OK"), NULL, NULL, &response);
+    });
+}
+
+%hook SpringBoard
+
+- (void)applicationDidFinishLaunching:(id)application {
+    %orig;
+    // Give SpringBoard time to finish startup and wait for OK off the main thread.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
+                   dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
+        ShowDemoAlert();
+    });
+}
+
+%end
