@@ -2,7 +2,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -10,6 +10,7 @@ import { bootstrap, compilerMarker, manualConfigPath as configFile, profilePath 
 
 const onWindows = process.platform === 'win32';
 const nativeScript = fileURLToPath(new URL('./cli.js', import.meta.url));
+const installer = fileURLToPath(new URL('../lib/native/agent_ios_install.py', import.meta.url));
 const demoTemplate = fileURLToPath(new URL('../templates/demo.nic', import.meta.url));
 const engines = ['msys', 'wsl', 'local'];
 const schemes = new Map([
@@ -32,6 +33,10 @@ const help = `win-theos (also available as theos)
        [--project <dir>] [--scheme rootful|rootless|roothide]
        [--archs "arm64 arm64e"] [-- <GNU Make args>]
        package defaults to all three schemes in the current project
+  install [<package.deb> | --scheme rootful|rootless|roothide | --job-id <id>]
+       [--project <dir>] [--udid <device>] [--python <executable>]
+       [--bin-dir <device-directory>] [--wait <seconds>]
+       Install a built package via agent_ios and verify dpkg status
   native <init|setup|doctor|build>  Standalone native Windows tweak workflow
 
 Theos configuration: ${configFile}`;
@@ -238,9 +243,67 @@ function make(command, options, remainder) {
   return runTheos('make', project, target ? [target, ...args] : args);
 }
 
+function listDebs(directory) {
+  try {
+    return readdirSync(directory, { withFileTypes: true })
+      .filter(entry => entry.isFile() && /\.deb$/i.test(entry.name))
+      .map(entry => join(directory, entry.name));
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+function selectDeb(project, scheme) {
+  const packages = join(project, 'packages');
+  const flat = listDebs(packages);
+  if (!scheme) {
+    const files = [...flat, ...Array.from(schemes.keys()).flatMap(name => listDebs(join(packages, name)))];
+    check(files.length > 0, `No DEB in ${packages}. Run win-theos package or pass the path to a built .deb.`);
+    check(files.length === 1, 'Multiple DEBs found. Choose --scheme or pass the exact .deb path.');
+    return files[0];
+  }
+  const architecture = { rootful: 'iphoneos-arm', rootless: 'iphoneos-arm64', roothide: 'iphoneos-arm64e' }[scheme];
+  const files = [...listDebs(join(packages, scheme)), ...flat.filter(file => file.endsWith(`_${architecture}.deb`))];
+  check(files.length > 0, `No ${scheme} DEB in ${packages}. Pass the exact .deb path for a custom output directory.`);
+  return files.map(file => ({ file, time: statSync(file).mtimeMs }))
+    .sort((left, right) => right.time - left.time || left.file.localeCompare(right.file))[0].file;
+}
+
+function install(options) {
+  const { values, positionals } = parseArgs({ args: options, allowPositionals: true, options: {
+    ...projectOptions, scheme: string, udid: string, wait: string, python: string, 'job-id': string,
+    'bin-dir': { type: 'string', multiple: true },
+  } });
+  check(positionals.length <= 1, 'Pass at most one .deb path.');
+  check(!values.scheme || schemes.has(values.scheme), 'Choose rootful, rootless, or roothide.');
+  check(Number(Boolean(positionals[0])) + Number(Boolean(values.scheme)) + Number(Boolean(values['job-id'])) <= 1,
+    'Choose a .deb path, --scheme, or --job-id.');
+  const args = ['-B', installer];
+  if (values['job-id']) {
+    args.push('--job-id', values['job-id']);
+  } else {
+    const project = resolve(values.project ?? '.');
+    const file = positionals[0] ? resolve(project, positionals[0]) : selectDeb(project, values.scheme);
+    check(/\.deb$/i.test(file) && existsSync(file) && statSync(file).isFile(), `DEB file not found: ${file}`);
+    args.push('--deb', file);
+  }
+  if (values.udid) args.push('--udid', values.udid);
+  if (values.wait) args.push('--wait', values.wait);
+  for (const path of values['bin-dir'] ?? []) args.push('--bin-dir', path);
+  const executable = values.python ?? process.env.WIN_THEOS_PYTHON ?? 'python';
+  const result = spawnSync(executable, args, { stdio: 'inherit', windowsHide: true });
+  if (result.error?.code === 'ENOENT') {
+    throw new Error('Python 3.10+ is required for win-theos install. Pass --python <executable> if needed.');
+  }
+  if (result.error) throw result.error;
+  return result.status ?? 1;
+}
+
 async function main([command, ...args]) {
   if (command === 'native') return run(process.execPath, [nativeScript, ...args]);
-  if (!command || command === '--help' || command === '-h' || args[0] === '--help') {
+  if (!command || command === '--help' || command === '-h' || args[0] === '--help' ||
+      (command === 'install' && args.includes('--help'))) {
     console.log(help);
     return 0;
   }
@@ -263,6 +326,7 @@ async function main([command, ...args]) {
     check(args.length === 0, 'Usage: win-theos doctor.');
     return runTheos('doctor', process.cwd());
   }
+  if (command === 'install') return install(args);
   const [options, remainder] = splitPassthrough(args);
   if (command === 'init') return init(options, remainder);
   if (targets.has(command)) return make(command, options, remainder);

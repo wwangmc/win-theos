@@ -88,6 +88,23 @@ rootful、rootless 和 RootHide 的安装路径和包架构各自独立。项目
 
 从 0.4.2 起，便携 Windows 环境会安装 Objective-C `@available` 和 `__builtin_available` 所需的 iOS 版本检查运行库，支持 arm64 和 arm64e。升级 CLI 时会给已有便携环境补齐该运行库。
 
+## 安装已打包的插件
+
+在越狱手机上安装与设备匹配的 [agent_ios DEB](https://github.com/wwangmc/agent_ios/releases) 并重新载入 SpringBoard。电脑端需要 Python 3.10+，可通过 `--python <exe>` 或 `WIN_THEOS_PYTHON` 指定解释器。此功能从 win-theos 0.5.0 起提供。
+
+```powershell
+win-theos.cmd install --scheme rootless
+win-theos.cmd install '.\packages\my-tweak.deb' --udid '<设备UDID>'
+```
+
+`--scheme` 从对应模式目录和 `packages` 下符合该模式标准架构文件名的产物中选择最新修改的 DEB。只有一个候选包时可直接运行 `win-theos install`。自定义输出目录和原生构建产物可传 DEB 路径。项目目录可用 `--project` 指定。
+
+USB 模式通过 Apple Mobile Device Service 自动把电脑的 `127.0.0.1:9191` 转发到手机 `9191`，再访问设备上的 `/mcp`。连接多台设备时用 `--udid` 指定目标。若本地 `9191` 已被占用，可用 `AGENT_IOS_LOCAL_PORT` 自定义本地端口。已有可信的转发地址时，可用 `AGENT_IOS_URL` 指定完整 MCP URL。手机配置了 Bearer 认证时设置 `AGENT_IOS_TOKEN`。
+
+命令通过 MCP 上传并校验包、提交一次 `dpkg -i`，然后查询退出码和设备上实际的包状态。等待时间默认 120 秒，可用 `--wait` 修改；如果连接中断或结果未确定，可用 `win-theos install --job-id <任务ID>` 继续核验。RootHide 自定义工具路径可重复传 `--bin-dir <设备绝对目录>`。
+
+要让 Codex 等 agent 直接调用手机工具，可将本包的 `lib/native/agent_ios_bridge.py` 注册为 stdio MCP 入口。用 Python 3.10+ 启动脚本，桥接会按会话建立和关闭 USB 转发。示例 `codex mcp add agent_ios -- python -B <脚本绝对路径>`。
+
 ## 独立的原生 tweak 流程
 
 上一版的 Windows Python 构建流程可通过 `win-theos native` 继续使用。它适用于简单 `.x`、`.xm` 注入项目，可用现有的 `WIN_IOS_TWEAK_CONFIG`。需要 GNU Make 规则、其他项目类型或多子项目时，从上面的 `init` 和 `package` 入口运行 Theos。
@@ -113,7 +130,7 @@ win-theos.cmd native build
 ```powershell
 New-Item -ItemType Directory -Force dist
 npm.cmd pack --pack-destination dist
-npm.cmd install -g --foreground-scripts .\dist\win-theos-0.4.2.tgz
+npm.cmd install -g --foreground-scripts .\dist\win-theos-0.5.0.tgz
 theos.cmd doctor
 ```
 

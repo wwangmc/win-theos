@@ -1,7 +1,7 @@
 {
   "name": "win-theos",
-  "version": "0.4.2",
-  "description": "Global CLI for Theos project templates, builds, and packaging on Windows",
+  "version": "0.5.0",
+  "description": "Theos templates, builds, packaging, and agent_ios USB installation on Windows",
   "license": "MIT",
   "repository": {
     "type": "git",

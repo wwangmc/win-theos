@@ -1,6 +1,6 @@
 ---
 name: win-theos
-description: Generate, build, and package iOS Theos projects on Windows with the win-theos CLI. Use for NIC templates, Logos tweaks, existing Theos Makefiles, and rootful, rootless, or RootHide DEBs.
+description: Generate, build, and package iOS Theos projects on Windows, or install a built DEB on a jailbroken device via agent_ios. Use for NIC templates, Logos tweaks, Theos Makefiles, and rootful, rootless, or RootHide packages.
 ---
 
 # win-theos
@@ -29,5 +29,15 @@ theos.cmd package
 - Add `--project <dir>` to operate from a different working directory. Put additional Make arguments after `--`, for example `theos.cmd package -- FINALPACKAGE=1`.
 - Official templates load the package scheme through `common.mk`. Add Makefile conditionals only when project dependencies, paths, or flags need mode-specific values. A custom Theos installation needs its own RootHide module to produce that mode.
 - Inspect the generated `.deb` files and report which modes passed. Verify the actual Mach-O slices when architecture coverage is requested. Device installation and runtime behavior require separate verification.
+
+## Install a built DEB
+
+Check that `theos.cmd --help` lists `install`. The `theos.cmd` and `win-theos.cmd` aliases use the same CLI. For an older global copy, use the updated checkout's `node <absolute-path-to-bin/theos.js> install ...` or install an updated build of the CLI.
+
+Use `theos.cmd install --scheme rootless` to select the latest rootless DEB or `theos.cmd install <path-to.deb>` to select an exact artifact. Match the package scheme to the phone. The phone needs a running `agent_ios` installation and the computer needs Python 3.10+.
+
+Connect and unlock the phone, then complete computer trust. By default, the command opens a USB forward from `127.0.0.1:9191` to port `9191` on the phone and closes it on exit. Windows uses Apple Mobile Device Service. For multiple connected devices, pass `--udid <device>`. If the local port is busy, set `AGENT_IOS_LOCAL_PORT` to a free port. An explicit `AGENT_IOS_URL` uses that MCP endpoint directly.
+
+The command verifies the `dpkg` exit code and current package identity and status. If an installation was submitted and the outcome is uncertain, use `theos.cmd install --job-id <id>` to continue verification.
 
 See the CLI reference for custom toolchains and other build commands. [win-theos README](https://github.com/wwangmc/win-theos#readme)
